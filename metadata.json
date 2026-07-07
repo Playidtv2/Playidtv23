@@ -1,0 +1,6 @@
+{
+  "name": "IPTV Play",
+  "description": "แอพ IPTV Player เล่นและจัดการเพลย์ลิสต์ Xtream Codes API, M3U, MPD, M3U8",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
