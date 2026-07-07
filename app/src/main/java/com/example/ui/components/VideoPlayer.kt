@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -33,7 +34,7 @@ fun VideoPlayer(
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Initialize ExoPlayer
+    // Initialize ExoPlayer with standard performance enhancements
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
             playWhenReady = true
@@ -49,19 +50,35 @@ fun VideoPlayer(
 
             override fun onPlayerError(error: PlaybackException) {
                 isLoading = false
-                val desc = "Error playing stream: ${error.localizedMessage ?: "Unknown network error"}"
+                val desc = "Error playing stream: ${error.localizedMessage ?: "Unknown network/codec error"}"
                 errorMessage = desc
                 onPlayerError(desc)
             }
         })
     }
 
-    // React to video URL change
+    // React to video URL change and automatically detect proper streaming formats (HLS, DASH, Progressive)
     LaunchedEffect(videoUrl) {
         isLoading = true
         errorMessage = null
         try {
-            val mediaItem = MediaItem.fromUri(videoUrl)
+            val mediaItemBuilder = MediaItem.Builder().setUri(videoUrl)
+            
+            // Explicitly set MimeType based on the extension to ensure optimal decoding
+            when {
+                videoUrl.contains(".m3u8", ignoreCase = true) || videoUrl.contains("m3u8", ignoreCase = true) -> {
+                    mediaItemBuilder.setMimeType(MimeTypes.APPLICATION_M3U8)
+                }
+                videoUrl.contains(".mpd", ignoreCase = true) || videoUrl.contains("mpd", ignoreCase = true) -> {
+                    mediaItemBuilder.setMimeType(MimeTypes.APPLICATION_MPD)
+                }
+                videoUrl.contains(".ts", ignoreCase = true) -> {
+                    // Standard MPEG-TS stream for Xtream Codes LIVE streams
+                    mediaItemBuilder.setMimeType(MimeTypes.VIDEO_MP2T)
+                }
+            }
+            
+            val mediaItem = mediaItemBuilder.build()
             exoPlayer.setMediaItem(mediaItem)
             exoPlayer.prepare()
             exoPlayer.play()
@@ -87,6 +104,8 @@ fun VideoPlayer(
                 PlayerView(ctx).apply {
                     player = exoPlayer
                     useController = true
+                    // Show standard controllers containing Play, Pause, Timeline tracking immediately
+                    showController()
                     layoutParams = FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
